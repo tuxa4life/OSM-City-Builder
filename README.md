@@ -11,10 +11,6 @@ A React app that fetches geographic data from **OpenStreetMap (OSM)** and genera
 - User-friendly interface to select countries or regions.
 - Dynamic updates for selected areas.
 
-## Demo
-
-*(Optional: Include a screenshot or GIF of the 3D map)*
-
 ## Installation
 
 ```bash
