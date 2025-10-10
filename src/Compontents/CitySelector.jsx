@@ -1,7 +1,6 @@
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js"
 import { useData } from "../Context/DataContext"
 import Dropdown from "./Dropdown"
-import { useState } from "react"
 
 const CitySelector = () => {
     const { countries, cities, selectCountry, setSelectedCity, message, mesh } = useData()
