@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ContextMenu from './Compontents/ContextMenu';
 import ThreeScene from './Compontents/ThreeScene';
 import './Styles/App.css'
@@ -8,6 +8,12 @@ import { useData } from './Context/DataContext';
 const App = () => {
     const [contextOpen, setContextOpen] = useState(true)
     const { mesh } = useData()
+
+    useEffect(() => {
+        if (window.innerWidth < 650) {
+            setContextOpen(false)
+        }
+    }, [])
 
     return <div>
         {
