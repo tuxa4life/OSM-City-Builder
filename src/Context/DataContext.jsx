@@ -1,44 +1,27 @@
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 import axios from "axios"
 
 const DataContext = createContext()
 
+const DEFAULT_BUILDING_LEVELS = 1
+const OVERPASS_TIMEOUT = 1200
+const ELEVATION_BATCH_SIZE = 10000
+const MIN_POPULATION = 1000
+const MAX_RETRIES = 3
+const BASE_RETRY_DELAY = 2000
+const RETRY_DELAY_504 = 3000
+
 const DataProvider = ({ children }) => {
     const [fetching, setFetching] = useState(false)
     const [buildings, setBuildings] = useState([])
-
     const [countries, setCountries] = useState({})
     const [selectedCountry, setSelectedCountry] = useState('')
-
     const [cities, setCities] = useState({})
     const [selectedCity, setSelectedCity] = useState(-1)
-
     const [message, setMessage] = useState('')
     const [mesh, setMesh] = useState(null)
 
-    useEffect(() => {
-        fetchCountries()
-    }, [])
-
-    useEffect(() => {
-        if (selectedCountry) {
-            fetchCities(selectedCountry)
-        }
-    }, [selectedCountry])
-
-    useEffect(() => {
-        if (selectedCity !== -1) {
-            setFetching(true)
-            fetchBuildings(selectedCity).then(() => setFetching(false))
-        }
-    }, [selectedCity])
-
-    const selectCountry = (country) => {
-        setCities({})
-        setSelectedCountry(country)
-    }
-
-    const calculateCenter = (coords) => {
+    const calculateCenter = useCallback((coords) => {
         if (!coords.length) return null
 
         const total = coords.reduce(
@@ -54,30 +37,17 @@ const DataProvider = ({ children }) => {
             latitude: parseFloat((total.lat / coords.length).toFixed(4)),
             longitude: parseFloat((total.lon / coords.length).toFixed(4)),
         }
-    }
+    }, [])
 
-    const fetchCountries = async () => {
-        try {
-            const res = await axios.get('https://restcountries.com/v3.1/all?fields=name,cca2')
+    const getEnglishName = useCallback((tags) => 
+        tags['name:en'] || tags['int_name'] || tags['name:latin'] || 
+        tags['official_name:en'] || tags['name'], [])
 
-            const countryCodes = {}
-            res.data.forEach((c) => {
-                countryCodes[c.name.common.toLowerCase()] = c.cca2
-            })
-
-            setCountries(countryCodes)
-        } catch (err) {
-            setMessage(`"Error ${err.status}" while loading countries.`)
-            return -1
-        }
-    }
-
-    const fetchWithRetry = async (fetchFn, maxRetries = 3, baseDelay = 2000) => {
+    const fetchWithRetry = useCallback(async (fetchFn, maxRetries = MAX_RETRIES, baseDelay = BASE_RETRY_DELAY) => {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 return await fetchFn()
             } catch (err) {
-                console.log(err)
                 const is504 = err.response?.status === 504 || err.status === 504
                 const isLastAttempt = attempt === maxRetries
 
@@ -90,11 +60,26 @@ const DataProvider = ({ children }) => {
                 }
             }
         }
-    }
+    }, [])
 
-    const fetchCities = async (countryCode, minPopulation = 1000) => {
+    const fetchCountries = useCallback(async () => {
+        try {
+            const res = await axios.get('https://restcountries.com/v3.1/all?fields=name,cca2')
+
+            const countryCodes = res.data.reduce((acc, c) => {
+                acc[c.name.common.toLowerCase()] = c.cca2
+                return acc
+            }, {})
+
+            setCountries(countryCodes)
+        } catch (err) {
+            setMessage(`"Error ${err.status}" while loading countries.`)
+            return -1
+        }
+    }, [])
+
+    const fetchCities = useCallback(async (countryCode) => {
         setMessage(`Loading cities...`)
-        const getEnglishName = (tags) => tags['name:en'] || tags['int_name'] || tags['name:latin'] || tags['official_name:en'] || tags['name']
 
         const query = `
             [out:json][timeout:60];
@@ -112,38 +97,38 @@ const DataProvider = ({ children }) => {
                 })
             )
 
-            const cities = response.data.elements
+            const cityMap = response.data.elements
                 .filter((e) => {
                     const pop = parseInt(e.tags?.population || 0)
-                    return pop >= minPopulation && e.tags?.name
+                    return pop >= MIN_POPULATION && e.tags?.name
                 })
                 .sort((a, b) => parseInt(b.tags.population || 0) - parseInt(a.tags.population || 0))
-
-            const cityMap = {}
-            cities.forEach((e) => {
-                const name = getEnglishName(e.tags)
-                cityMap[name] = e.id
-            })
+                .reduce((acc, e) => {
+                    const name = getEnglishName(e.tags)
+                    acc[name] = e.id
+                    return acc
+                }, {})
 
             setMessage(`Loaded ${Object.keys(cityMap).length} cities.`)
-
             setCities(cityMap)
         } catch (err) {
             setMessage(`"Error ${err.response?.status || err.status}" while loading cities.`)
             return -1
         }
-    }
+    }, [fetchWithRetry, getEnglishName])
 
-    const fetchElevations = async (coordinates) => {
+    const fetchElevations = useCallback(async (coordinates) => {
         const url = 'https://api.open-elevation.com/api/v1/lookup'
-        const batchSize = 10000 
         const results = []
 
         try {
-            for (let i = 0; i < coordinates.length; i += batchSize) {
-                const batch = coordinates.slice(i, i + batchSize)
+            const totalBatches = Math.ceil(coordinates.length / ELEVATION_BATCH_SIZE)
+            
+            for (let i = 0; i < coordinates.length; i += ELEVATION_BATCH_SIZE) {
+                const batch = coordinates.slice(i, i + ELEVATION_BATCH_SIZE)
+                const batchNum = Math.floor(i / ELEVATION_BATCH_SIZE) + 1
 
-                console.log(`=== Fetching batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(coordinates.length / batchSize)} ===`)
+                console.log(`=== Fetching batch ${batchNum}/${totalBatches} ===`)
 
                 const response = await fetch(url, {
                     method: 'POST',
@@ -151,10 +136,15 @@ const DataProvider = ({ children }) => {
                     body: JSON.stringify({ locations: batch }),
                 })
 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`)
+                }
+
                 const data = await response.json()
                 results.push(...data.results)
 
-                if (i + batchSize < coordinates.length) {
+                // Rate limiting between batches
+                if (i + ELEVATION_BATCH_SIZE < coordinates.length) {
                     await new Promise(resolve => setTimeout(resolve, 100))
                 }
             }
@@ -165,81 +155,38 @@ const DataProvider = ({ children }) => {
             console.error('Error fetching elevations:', err)
             return []
         }
-    }
+    }, [])
 
-    const fetchBuildings = async (cityId) => {
-        setMessage(`Generating 3D Model, Please wait...`)
-
-        const areaId = 3600000000 + cityId
-        const query = `
-            [out:json][timeout:${OVERPASS_TIMEOUT}];
-            (
-                way["building"](area:${areaId});
-            );
-            out body geom;
-        `
-
-        try {
-            const response = await fetchWithRetry(() =>
-                axios.post('https://overpass-api.de/api/interpreter', query, { headers: { 'Content-Type': 'text/plain' } }), 3, 3000)
-
-            const processedBuildings = response.data.elements.map((element) => ({
-                nodes: element.geometry.map((e) => [e.lon, e.lat]),
-                height: (element.tags?.['building:levels']) ?? DEFAULT_BUILDING_LEVELS,
-                center: calculateCenter(element.geometry)
-            }))
-
-            const centers = processedBuildings.map(e => {
-                return {
-                    latitude: parseFloat(e.center.latitude),
-                    longitude: parseFloat(e.center.longitude)
-                }
-            })
-            const elevations = await fetchElevations(centers)
-            const processedElevatedBuildings = processedBuildings.map((b, i) => ({ ...b, elevation: elevations[i].elevation }));
-
-            const { buildings: scaledBuildings } = scaleOSMCoordinates(processedElevatedBuildings)
-
-            setBuildings(scaledBuildings)
-            setMessage('')
-        } catch (err) {
-            setMessage(`"Error ${err.response?.status || err.status}" while generating 3D Model.`)
-            console.log(err)
-            return -1
-        }
-    }
-
-    const DEFAULT_BUILDING_LEVELS = 1
-    const OVERPASS_TIMEOUT = 1200
-
-    const scaleOSMCoordinates = (buildings, options = {}) => {
+    const scaleOSMCoordinates = useCallback((buildings, options = {}) => {
         const { targetSize = 3000, centerOrigin = true } = options
 
-        if (!buildings || buildings.length === 0) {
+        if (!buildings?.length) {
             return { buildings: [], bounds: null, scale: 1 }
         }
 
-        let minLon = Infinity, maxLon = -Infinity
-        let minLat = Infinity, maxLat = -Infinity
-        let minElevation = Infinity
-
-        buildings.forEach((building) => {
+        const bounds = buildings.reduce((acc, building) => {
             building.nodes.forEach(([lon, lat]) => {
-                minLon = Math.min(minLon, lon)
-                maxLon = Math.max(maxLon, lon)
-                minLat = Math.min(minLat, lat)
-                maxLat = Math.max(maxLat, lat)
+                acc.minLon = Math.min(acc.minLon, lon)
+                acc.maxLon = Math.max(acc.maxLon, lon)
+                acc.minLat = Math.min(acc.minLat, lat)
+                acc.maxLat = Math.max(acc.maxLat, lat)
             })
             if (building.elevation != null) {
-                minElevation = Math.min(minElevation, building.elevation)
+                acc.minElevation = Math.min(acc.minElevation, building.elevation)
             }
+            return acc
+        }, {
+            minLon: Infinity,
+            maxLon: -Infinity,
+            minLat: Infinity,
+            maxLat: -Infinity,
+            minElevation: Infinity
         })
 
-        const centerLon = (minLon + maxLon) / 2
-        const centerLat = (minLat + maxLat) / 2
-
-        const lonSpan = maxLon - minLon
-        const latSpan = maxLat - minLat
+        const centerLon = (bounds.minLon + bounds.maxLon) / 2
+        const centerLat = (bounds.minLat + bounds.maxLat) / 2
+        const lonSpan = bounds.maxLon - bounds.minLon
+        const latSpan = bounds.maxLat - bounds.minLat
 
         const latToMeters = 111320
         const lonToMeters = 111320 * Math.cos((centerLat * Math.PI) / 180)
@@ -247,7 +194,6 @@ const DataProvider = ({ children }) => {
         const widthMeters = lonSpan * lonToMeters
         const heightMeters = latSpan * latToMeters
         const maxSpanMeters = Math.max(widthMeters, heightMeters)
-
         const scale = targetSize / maxSpanMeters
 
         const scaledBuildings = buildings.map((building) => {
@@ -263,7 +209,9 @@ const DataProvider = ({ children }) => {
                 return [x, z]
             })
 
-            let y = building.elevation != null ? (building.elevation - minElevation) * scale : 2
+            const y = building.elevation != null 
+                ? (building.elevation - bounds.minElevation) * scale 
+                : 2
 
             return {
                 nodes: scaledNodes,
@@ -275,10 +223,7 @@ const DataProvider = ({ children }) => {
         return {
             buildings: scaledBuildings,
             bounds: {
-                minLon,
-                maxLon,
-                minLat,
-                maxLat,
+                ...bounds,
                 centerLon,
                 centerLat,
                 widthMeters,
@@ -287,17 +232,102 @@ const DataProvider = ({ children }) => {
             scale,
             metersPerUnit: 1 / scale,
         }
-    }
+    }, [])
 
-    const data = { mesh, setMesh, message, fetching, buildings, countries, cities, setSelectedCity, selectCountry }
+    const fetchBuildings = useCallback(async (cityId) => {
+        setMessage(`Generating 3D Model, Please wait...`)
+
+        const areaId = 3600000000 + cityId
+        const query = `
+            [out:json][timeout:${OVERPASS_TIMEOUT}];
+            (
+                way["building"](area:${areaId});
+            );
+            out body geom;
+        `
+
+        try {
+            const response = await fetchWithRetry(() =>
+                axios.post('https://overpass-api.de/api/interpreter', query, {
+                    headers: { 'Content-Type': 'text/plain' }
+                }), MAX_RETRIES, RETRY_DELAY_504)
+
+            const processedBuildings = response.data.elements.map((element) => ({
+                nodes: element.geometry.map((e) => [e.lon, e.lat]),
+                height: element.tags?.['building:levels'] ?? DEFAULT_BUILDING_LEVELS,
+                center: calculateCenter(element.geometry)
+            }))
+
+            const centers = processedBuildings.map(e => ({
+                latitude: parseFloat(e.center.latitude),
+                longitude: parseFloat(e.center.longitude)
+            }))
+
+            const elevations = await fetchElevations(centers)
+            const processedElevatedBuildings = processedBuildings.map((b, i) => ({
+                ...b,
+                elevation: elevations[i]?.elevation
+            }))
+
+            const { buildings: scaledBuildings } = scaleOSMCoordinates(processedElevatedBuildings)
+
+            setBuildings(scaledBuildings)
+            setMessage('')
+        } catch (err) {
+            setMessage(`"Error ${err.response?.status || err.status}" while generating 3D Model.`)
+            console.error('Error fetching buildings:', err)
+            return -1
+        }
+    }, [fetchWithRetry, calculateCenter, fetchElevations, scaleOSMCoordinates])
+
+    const selectCountry = useCallback((country) => {
+        setCities({})
+        setSelectedCountry(country)
+    }, [])
+
+    useEffect(() => {
+        fetchCountries()
+    }, [fetchCountries])
+
+    useEffect(() => {
+        if (selectedCountry) {
+            fetchCities(selectedCountry)
+        }
+    }, [selectedCountry, fetchCities])
+
+    useEffect(() => {
+        if (selectedCity !== -1) {
+            setFetching(true)
+            fetchBuildings(selectedCity).finally(() => setFetching(false))
+        }
+    }, [selectedCity, fetchBuildings])
+
+    const contextValue = useMemo(() => ({
+        mesh,
+        setMesh,
+        message,
+        fetching,
+        buildings,
+        countries,
+        cities,
+        setSelectedCity,
+        selectCountry
+    }), [mesh, message, fetching, buildings, countries, cities, selectCountry])
 
     return (
-        <DataContext.Provider value={data}>
+        <DataContext.Provider value={contextValue}>
             {children}
         </DataContext.Provider>
     )
 }
 
-export const useData = () => useContext(DataContext)
+export const useData = () => {
+    const context = useContext(DataContext)
+    if (!context) {
+        throw new Error('useData must be used within a DataProvider')
+    }
+    return context
+}
+
 export { DataProvider }
 export default DataContext
