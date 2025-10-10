@@ -38,6 +38,24 @@ const DataProvider = ({ children }) => {
         setSelectedCountry(country)
     }
 
+    const calculateCenter = (coords) => {
+        if (!coords.length) return null
+
+        const total = coords.reduce(
+            (acc, { lat, lon }) => {
+                acc.lat += lat
+                acc.lon += lon
+                return acc
+            },
+            { lat: 0, lon: 0 }
+        )
+
+        return {
+            latitude: parseFloat((total.lat / coords.length).toFixed(4)),
+            longitude: parseFloat((total.lon / coords.length).toFixed(4)),
+        }
+    }
+
     const fetchCountries = async () => {
         try {
             const res = await axios.get('https://restcountries.com/v3.1/all?fields=name,cca2')
@@ -64,7 +82,7 @@ const DataProvider = ({ children }) => {
                 const isLastAttempt = attempt === maxRetries
 
                 if (is504 && !isLastAttempt) {
-                    const delay = baseDelay * Math.pow(2, attempt) // Exponential backoff
+                    const delay = baseDelay * Math.pow(2, attempt)
                     setMessage(`Server timeout (504). Retrying in ${delay / 1000}s... (Attempt ${attempt + 1}/${maxRetries})`)
                     await new Promise(resolve => setTimeout(resolve, delay))
                 } else {
@@ -79,13 +97,13 @@ const DataProvider = ({ children }) => {
         const getEnglishName = (tags) => tags['name:en'] || tags['int_name'] || tags['name:latin'] || tags['official_name:en'] || tags['name']
 
         const query = `
-        [out:json][timeout:60];
-        area["ISO3166-1"="${countryCode}"]->.country;
-        (
-            relation["place"~"city|town"]["population"](area.country);
-        );
-        out tags;
-    `
+            [out:json][timeout:60];
+            area["ISO3166-1"="${countryCode}"]->.country;
+            (
+                relation["place"~"city|town"]["population"](area.country);
+            );
+            out tags;
+        `
 
         try {
             const response = await fetchWithRetry(() =>
@@ -116,17 +134,50 @@ const DataProvider = ({ children }) => {
         }
     }
 
+    const fetchElevations = async (coordinates) => {
+        const url = 'https://api.open-elevation.com/api/v1/lookup'
+        const batchSize = 10000 
+        const results = []
+
+        try {
+            for (let i = 0; i < coordinates.length; i += batchSize) {
+                const batch = coordinates.slice(i, i + batchSize)
+
+                console.log(`=== Fetching batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(coordinates.length / batchSize)} ===`)
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ locations: batch }),
+                })
+
+                const data = await response.json()
+                results.push(...data.results)
+
+                if (i + batchSize < coordinates.length) {
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                }
+            }
+
+            console.log('=== All batches complete ===')
+            return results
+        } catch (err) {
+            console.error('Error fetching elevations:', err)
+            return []
+        }
+    }
+
     const fetchBuildings = async (cityId) => {
         setMessage(`Generating 3D Model, Please wait...`)
 
         const areaId = 3600000000 + cityId
         const query = `
-        [out:json][timeout:${OVERPASS_TIMEOUT}];
-        (
-            way["building"](area:${areaId});
-        );
-        out body geom;
-    `
+            [out:json][timeout:${OVERPASS_TIMEOUT}];
+            (
+                way["building"](area:${areaId});
+            );
+            out body geom;
+        `
 
         try {
             const response = await fetchWithRetry(() =>
@@ -135,9 +186,19 @@ const DataProvider = ({ children }) => {
             const processedBuildings = response.data.elements.map((element) => ({
                 nodes: element.geometry.map((e) => [e.lon, e.lat]),
                 height: (element.tags?.['building:levels']) ?? DEFAULT_BUILDING_LEVELS,
+                center: calculateCenter(element.geometry)
             }))
 
-            const { buildings: scaledBuildings } = scaleOSMCoordinates(processedBuildings)
+            const centers = processedBuildings.map(e => {
+                return {
+                    latitude: parseFloat(e.center.latitude),
+                    longitude: parseFloat(e.center.longitude)
+                }
+            })
+            const elevations = await fetchElevations(centers)
+            const processedElevatedBuildings = processedBuildings.map((b, i) => ({ ...b, elevation: elevations[i].elevation }));
+
+            const { buildings: scaledBuildings } = scaleOSMCoordinates(processedElevatedBuildings)
 
             setBuildings(scaledBuildings)
             setMessage('')
@@ -160,6 +221,7 @@ const DataProvider = ({ children }) => {
 
         let minLon = Infinity, maxLon = -Infinity
         let minLat = Infinity, maxLat = -Infinity
+        let minElevation = Infinity
 
         buildings.forEach((building) => {
             building.nodes.forEach(([lon, lat]) => {
@@ -168,6 +230,9 @@ const DataProvider = ({ children }) => {
                 minLat = Math.min(minLat, lat)
                 maxLat = Math.max(maxLat, lat)
             })
+            if (building.elevation != null) {
+                minElevation = Math.min(minElevation, building.elevation)
+            }
         })
 
         const centerLon = (minLon + maxLon) / 2
@@ -198,9 +263,12 @@ const DataProvider = ({ children }) => {
                 return [x, z]
             })
 
+            let y = building.elevation != null ? (building.elevation - minElevation) * scale : 2
+
             return {
                 nodes: scaledNodes,
                 height: building.height || 2,
+                elevation: y
             }
         })
 

@@ -24,7 +24,7 @@ const ThreeScene = () => {
                 continue
             }
 
-            const { height, nodes } = buildingData
+            const { elevation, height, nodes } = buildingData
             const shape = new THREE.Shape()
             shape.moveTo(nodes[0][0], nodes[0][1])
             for (let i = 1; i < nodes.length; i++) shape.lineTo(nodes[i][0], nodes[i][1])
@@ -33,6 +33,7 @@ const ThreeScene = () => {
             const extrudeSettings = { depth: height / 4, bevelEnabled: false }
             const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
             geometry.rotateX(Math.PI / 2)
+            geometry.translate(0, -elevation, 0)
             geometries.push(geometry)
         }
 
