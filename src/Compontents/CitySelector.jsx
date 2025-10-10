@@ -34,7 +34,7 @@ const CitySelector = () => {
         )
     }
 
-    return <div style={{ position: 'absolute', top: '10px', right: '10px', padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.8)', borderRadius: '7px', boxShadow: '0px 0px 15px 0px rgba(0,0,0,0.4)' }}>
+    return <div style={{ position: 'absolute', top: '10px', right: '10px', padding: '10px 20px', backgroundColor: 'rgba(255, 255, 255, 0.6)', backdropFilter: 'blur(5px)', borderRadius: '7px', boxShadow: '0px 0px 7px 0px rgba(0,0,0,0.4)' }}>
         <div style={{ margin: '20px 0' }}>
             <h4>Select a country</h4>
             <Dropdown disabled={!Object.keys(countries).length} options={() => formatData(countries)} placeholder="Search country..." onChange={(e) => selectCountry(e.value)} />
