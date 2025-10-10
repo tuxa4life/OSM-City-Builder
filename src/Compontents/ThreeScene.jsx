@@ -48,7 +48,10 @@ const ThreeScene = () => {
 
     const createCity = useCallback((buildingsData) => {
         if (!buildingsData?.length) {
-            return null
+            const cubeGeometry = new THREE.BoxGeometry(10, 10, 10)
+            const material = new THREE.MeshStandardMaterial(SCENE_CONFIG.material)
+            const cubeMesh = new THREE.Mesh(cubeGeometry, material)
+            return cubeMesh
         }
 
         const geometries = []
@@ -198,7 +201,6 @@ const ThreeScene = () => {
 
     useEffect(() => {
         if (!mountRef.current) return
-
         const scene = new THREE.Scene()
         sceneRef.current = scene
 
@@ -227,6 +229,7 @@ const ThreeScene = () => {
 
         const cityMesh = createCity(buildings)
         if (cityMesh) {
+            cityMesh.scale.y = 0.001
             scene.add(cityMesh)
             cityMeshRef.current = cityMesh
             setMesh(cityMesh)
@@ -252,9 +255,20 @@ const ThreeScene = () => {
         controls.maxPolarAngle = SCENE_CONFIG.controls.maxPolarAngle
         controlsRef.current = controls
 
+        let buildProgress = 0
         const animate = () => {
             animationFrameRef.current = requestAnimationFrame(animate)
             controls.update()
+
+            if (cityMeshRef.current && buildProgress < 1) {
+                buildProgress += 0.001
+                cityMeshRef.current.scale.y = THREE.MathUtils.lerp(
+                    cityMeshRef.current.scale.y,
+                    1,
+                    buildProgress
+                )
+            }
+
             renderer.render(scene, camera)
         }
         animate()
