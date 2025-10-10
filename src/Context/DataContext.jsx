@@ -213,7 +213,7 @@ const DataProvider = ({ children }) => {
     const OVERPASS_TIMEOUT = 1200
 
     const scaleOSMCoordinates = (buildings, options = {}) => {
-        const { targetSize = 1000, centerOrigin = true } = options
+        const { targetSize = 3000, centerOrigin = true } = options
 
         if (!buildings || buildings.length === 0) {
             return { buildings: [], bounds: null, scale: 1 }
@@ -267,7 +267,7 @@ const DataProvider = ({ children }) => {
 
             return {
                 nodes: scaledNodes,
-                height: building.height || 2,
+                height: (building.height || 2) * (targetSize / 1000),
                 elevation: y
             }
         })
