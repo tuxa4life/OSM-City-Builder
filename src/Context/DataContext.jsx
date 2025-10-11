@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
+import { useError } from './ErrorContext'
 import axios from "axios"
 
 const DataContext = createContext()
 
-const DEFAULT_BUILDING_LEVELS = 1
+const DEFAULT_BUILDING_LEVELS = 3
 const OVERPASS_TIMEOUT = 1200
 const ELEVATION_BATCH_SIZE = 10000
 const MIN_POPULATION = 1000
@@ -12,6 +13,8 @@ const BASE_RETRY_DELAY = 2000
 const RETRY_DELAY_504 = 3000
 
 const DataProvider = ({ children }) => {
+    const { showError } = useError()
+
     const [fetching, setFetching] = useState(false)
     const [buildings, setBuildings] = useState([])
     const [countries, setCountries] = useState({})
@@ -53,7 +56,7 @@ const DataProvider = ({ children }) => {
 
                 if (is504 && !isLastAttempt) {
                     const delay = baseDelay * Math.pow(2, attempt)
-                    setMessage(`Server timeout (504). Retrying in ${delay / 1000}s... (Attempt ${attempt + 1}/${maxRetries})`)
+                    showError(`Server timeout (504). Retrying in ${delay / 1000}s... `)
                     await new Promise(resolve => setTimeout(resolve, delay))
                 } else {
                     throw err
@@ -73,7 +76,8 @@ const DataProvider = ({ children }) => {
 
             setCountries(countryCodes)
         } catch (err) {
-            setMessage(`"Error ${err.status}" while loading countries.`)
+            showError(`Error ${err.status} while loading countries.`)
+
             return -1
         }
     }, [])
@@ -112,7 +116,7 @@ const DataProvider = ({ children }) => {
             setMessage(`Loaded ${Object.keys(cityMap).length} cities.`)
             setCities(cityMap)
         } catch (err) {
-            setMessage(`"Error ${err.response?.status || err.status}" while loading cities.`)
+            showError(`Error ${err.response?.status || err.status} while loading cities.`)
             return -1
         }
     }, [fetchWithRetry, getEnglishName])
@@ -123,13 +127,9 @@ const DataProvider = ({ children }) => {
 
         try {
             const totalBatches = Math.ceil(coordinates.length / ELEVATION_BATCH_SIZE)
-            
             for (let i = 0; i < coordinates.length; i += ELEVATION_BATCH_SIZE) {
                 const batch = coordinates.slice(i, i + ELEVATION_BATCH_SIZE)
                 const batchNum = Math.floor(i / ELEVATION_BATCH_SIZE) + 1
-
-                console.log(`=== Fetching batch ${batchNum}/${totalBatches} ===`)
-
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -143,16 +143,14 @@ const DataProvider = ({ children }) => {
                 const data = await response.json()
                 results.push(...data.results)
 
-                // Rate limiting between batches
                 if (i + ELEVATION_BATCH_SIZE < coordinates.length) {
                     await new Promise(resolve => setTimeout(resolve, 100))
                 }
             }
 
-            console.log('=== All batches complete ===')
             return results
         } catch (err) {
-            console.error('Error fetching elevations:', err)
+            showError(`Error ${err} while fetching elevations.`)
             return []
         }
     }, [])
@@ -220,18 +218,7 @@ const DataProvider = ({ children }) => {
             }
         })
 
-        return {
-            buildings: scaledBuildings,
-            bounds: {
-                ...bounds,
-                centerLon,
-                centerLat,
-                widthMeters,
-                heightMeters,
-            },
-            scale,
-            metersPerUnit: 1 / scale,
-        }
+        return scaledBuildings
     }, [])
 
     const fetchBuildings = useCallback(async (cityId) => {
@@ -247,10 +234,9 @@ const DataProvider = ({ children }) => {
         `
 
         try {
-            const response = await fetchWithRetry(() =>
-                axios.post('https://overpass-api.de/api/interpreter', query, {
-                    headers: { 'Content-Type': 'text/plain' }
-                }), MAX_RETRIES, RETRY_DELAY_504)
+            const response = await fetchWithRetry(() => axios.post('https://overpass-api.de/api/interpreter', query, {
+                headers: { 'Content-Type': 'text/plain' }
+            }), MAX_RETRIES, RETRY_DELAY_504)
 
             const processedBuildings = response.data.elements.map((element) => ({
                 nodes: element.geometry.map((e) => [e.lon, e.lat]),
@@ -269,13 +255,12 @@ const DataProvider = ({ children }) => {
                 elevation: elevations[i]?.elevation
             }))
 
-            const { buildings: scaledBuildings } = scaleOSMCoordinates(processedElevatedBuildings)
+            const scaledBuildings = scaleOSMCoordinates(processedElevatedBuildings)
 
             setBuildings(scaledBuildings)
             setMessage('')
         } catch (err) {
-            setMessage(`"Error ${err.response?.status || err.status}" while generating 3D Model.`)
-            console.error('Error fetching buildings:', err)
+            showError(`Error ${err.response?.status || err.status} while generating fetching buildings.`)
             return -1
         }
     }, [fetchWithRetry, calculateCenter, fetchElevations, scaleOSMCoordinates])
