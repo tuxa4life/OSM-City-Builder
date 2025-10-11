@@ -40,7 +40,7 @@ npm start
 
 -   Raw building data
 
-```json
+```js
 {
     "type": "way",
     "id": 25698772,
@@ -76,7 +76,7 @@ npm start
   
 -   Eleveation
 
-```json
+```js
 // input
 [
     {
@@ -99,7 +99,7 @@ npm start
   
 -   Processed building data
 
-```json
+```js
 // input
 [
     {
@@ -146,7 +146,7 @@ npm start
 ```
 
 - Countries
-```json
+```js
 {
     "georgia": "GE",
     "cyprus": "CY",
@@ -156,7 +156,7 @@ npm start
 ```
 
 - Cities
-```json
+```js
 {
     "Tbilisi": 1996871,
     "Rustavi": 5997314,
