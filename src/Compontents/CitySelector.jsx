@@ -3,7 +3,7 @@ import { useData } from "../Context/DataContext"
 import Dropdown from "./Dropdown"
 
 const CitySelector = () => {
-    const { countries, cities, selectCountry, setSelectedCity, message, mesh } = useData()
+    const { countries, cities, selectCountry, setSelectedCity, mesh } = useData()
 
     const formatData = (data) => {
         return Object.entries(data).map(([name, code]) => ({
@@ -44,10 +44,7 @@ const CitySelector = () => {
             <h4>Select a city</h4>
             <Dropdown disabled={!Object.keys(cities).length} options={() => formatData(cities)} placeholder="Search city..." onChange={(e) => setSelectedCity(e.value)} />
         </div>
-
-        {message && <p style={{ width: 'inherit' }}>{message}</p>}
-
-        {mesh && <button onClick={exportObject} style={{ marginTop: '10px', padding: "8px 16px", backgroundColor: "#a6a6a6ff", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>Export as .obj</button>}
+        {mesh && <button onClick={exportObject} style={{ padding: "8px 16px", backgroundColor: "#a6a6a6ff", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}>Export as .obj</button>}
 
     </div>
 }

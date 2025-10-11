@@ -6,6 +6,9 @@ const ErrorProvider = ({ children }) => {
     const [error, setError] = useState(false)
     const [errorAnimation, setErrorAnimation] = useState(false)
 
+    const [loaderMessage, setLoaderMessage] = useState('')
+    const [loaderState, setLoaderState] = useState(false)
+
     const clearError = () => {
         setErrorAnimation(false)
         setTimeout(() => setError(false), 500)
@@ -19,7 +22,7 @@ const ErrorProvider = ({ children }) => {
         setTimeout(clearError, duration)
     }
 
-    const data = { errorMessage, setErrorMessage, error, clearError, showError, errorAnimation }
+    const data = { loaderState, loaderMessage, setLoaderMessage, setLoaderState, errorMessage, setErrorMessage, error, clearError, showError, errorAnimation }
     return <ErrorContext.Provider value={data}>
         {children}
     </ErrorContext.Provider>

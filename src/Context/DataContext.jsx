@@ -13,7 +13,7 @@ const BASE_RETRY_DELAY = 2000
 const RETRY_DELAY_504 = 3000
 
 const DataProvider = ({ children }) => {
-    const { showError } = useError()
+    const { showError, setLoaderState, setLoaderMessage } = useError()
 
     const [fetching, setFetching] = useState(false)
     const [buildings, setBuildings] = useState([])
@@ -21,7 +21,6 @@ const DataProvider = ({ children }) => {
     const [selectedCountry, setSelectedCountry] = useState('')
     const [cities, setCities] = useState({})
     const [selectedCity, setSelectedCity] = useState(-1)
-    const [message, setMessage] = useState('')
     const [mesh, setMesh] = useState(null)
 
     const calculateCenter = useCallback((coords) => {
@@ -83,8 +82,6 @@ const DataProvider = ({ children }) => {
     }, [])
 
     const fetchCities = useCallback(async (countryCode) => {
-        setMessage(`Loading cities...`)
-
         const query = `
             [out:json][timeout:60];
             area["ISO3166-1"="${countryCode}"]->.country;
@@ -113,7 +110,6 @@ const DataProvider = ({ children }) => {
                     return acc
                 }, {})
 
-            setMessage(`Loaded ${Object.keys(cityMap).length} cities.`)
             setCities(cityMap)
         } catch (err) {
             showError(`Error ${err.response?.status || err.status} while loading cities.`)
@@ -122,14 +118,13 @@ const DataProvider = ({ children }) => {
     }, [fetchWithRetry, getEnglishName])
 
     const fetchElevations = useCallback(async (coordinates) => {
+        setLoaderMessage('Fetching building elevation data...')
         const url = 'https://api.open-elevation.com/api/v1/lookup'
         const results = []
 
         try {
-            const totalBatches = Math.ceil(coordinates.length / ELEVATION_BATCH_SIZE)
             for (let i = 0; i < coordinates.length; i += ELEVATION_BATCH_SIZE) {
                 const batch = coordinates.slice(i, i + ELEVATION_BATCH_SIZE)
-                const batchNum = Math.floor(i / ELEVATION_BATCH_SIZE) + 1
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -156,6 +151,7 @@ const DataProvider = ({ children }) => {
     }, [])
 
     const scaleOSMCoordinates = useCallback((buildings, options = {}) => {
+        setLoaderMessage('Scaling models to target size...')
         const { targetSize = 3000, centerOrigin = true } = options
 
         if (!buildings?.length) {
@@ -222,7 +218,8 @@ const DataProvider = ({ children }) => {
     }, [])
 
     const fetchBuildings = useCallback(async (cityId) => {
-        setMessage(`Generating 3D Model, Please wait...`)
+        setLoaderState(true)
+        setLoaderMessage('Fetching building nodes...')
 
         const areaId = 3600000000 + cityId
         const query = `
@@ -258,7 +255,6 @@ const DataProvider = ({ children }) => {
             const scaledBuildings = scaleOSMCoordinates(processedElevatedBuildings)
 
             setBuildings(scaledBuildings)
-            setMessage('')
         } catch (err) {
             showError(`Error ${err.response?.status || err.status} while generating fetching buildings.`)
             return -1
@@ -290,14 +286,13 @@ const DataProvider = ({ children }) => {
     const contextValue = useMemo(() => ({
         mesh,
         setMesh,
-        message,
         fetching,
         buildings,
         countries,
         cities,
         setSelectedCity,
         selectCountry
-    }), [mesh, message, fetching, buildings, countries, cities, selectCountry])
+    }), [mesh, fetching, buildings, countries, cities, selectCountry])
 
     return (
         <DataContext.Provider value={contextValue}>

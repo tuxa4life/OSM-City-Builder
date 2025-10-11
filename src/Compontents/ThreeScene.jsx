@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { useData } from '../Context/DataContext'
+import { useError } from '../Context/ErrorContext'
 
 const SCENE_CONFIG = {
     backgroundColor: '#B0E2FF',
@@ -45,8 +46,10 @@ const ThreeScene = () => {
     const cityMeshRef = useRef(null)
 
     const { buildings, setMesh } = useData()
+    const { setLoaderState, setLoaderMessage } = useError()
 
     const createCity = useCallback((buildingsData) => {
+        setLoaderMessage('All set! Rendering 3D model...')
         if (!buildingsData?.length) {
             const cubeGeometry = new THREE.BoxGeometry(10, 10, 10)
             const material = new THREE.MeshStandardMaterial(SCENE_CONFIG.material)
@@ -275,6 +278,8 @@ const ThreeScene = () => {
 
         window.addEventListener('resize', handleResize)
 
+        setLoaderState(false)
+        setLoaderMessage('')
         return cleanup
     }, [buildings, createCity, createSkybox, handleResize, cleanup, setMesh])
 
