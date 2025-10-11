@@ -44,6 +44,7 @@ const ThreeScene = () => {
     const controlsRef = useRef(null)
     const animationFrameRef = useRef(null)
     const cityMeshRef = useRef(null)
+    const compassRef = useRef({ container: null, arrow: null })
 
     const { buildings, setMesh } = useData()
     const { setLoaderState, setLoaderMessage } = useError()
@@ -160,6 +161,43 @@ const ThreeScene = () => {
         rendererRef.current.setSize(window.innerWidth, window.innerHeight)
     }, [])
 
+    const createCompassOverlay = useCallback(() => {
+        if (!mountRef.current) return null
+
+        const container = document.createElement('div')
+        container.setAttribute('id', 'three-compass')
+        container.style.cssText = "position:absolute;left:16px;bottom:16px;width:80px;height:80px;border-radius:8px;background:rgba(255,255,255,0.6);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:3;"
+
+        const svgNS = "http://www.w3.org/2000/svg"
+        const svg = document.createElementNS(svgNS, 'svg')
+        svg.setAttribute('viewBox', '0 0 100 100')
+        svg.setAttribute('width', '70')
+        svg.setAttribute('height', '70')
+        svg.style.display = 'block'
+
+        const circle = document.createElementNS(svgNS, 'circle')
+        circle.setAttribute('cx', '50')
+        circle.setAttribute('cy', '50')
+        circle.setAttribute('r', '40')
+        circle.setAttribute('fill', 'none')
+        circle.setAttribute('stroke', 'rgba(0,0,0,0.2)')
+        circle.setAttribute('stroke-width', '3')
+        svg.appendChild(circle)
+
+        const arrow = document.createElementNS(svgNS, 'polygon')
+        arrow.setAttribute('points', '50,18 70,75 50,65 30,75')
+        arrow.setAttribute('fill', 'rgba(0,0,0,0.6)')
+        arrow.setAttribute('transform', 'translate(0,0)')
+        arrow.style.transformOrigin = '50% 50%'
+        svg.appendChild(arrow)
+
+        container.appendChild(svg)
+        mountRef.current.style.position = 'relative'
+        mountRef.current.appendChild(container)
+
+        return { container, arrowElement: arrow }
+    }, [])
+
     const cleanup = useCallback(() => {
         if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current)
@@ -194,6 +232,11 @@ const ThreeScene = () => {
             if (mountRef.current?.contains(rendererRef.current.domElement)) {
                 mountRef.current.removeChild(rendererRef.current.domElement)
             }
+        }
+
+        if (compassRef.current.container && mountRef.current?.contains(compassRef.current.container)) {
+            mountRef.current.removeChild(compassRef.current.container)
+            compassRef.current = { container: null, arrow: null }
         }
 
         sceneRef.current = null
@@ -258,7 +301,15 @@ const ThreeScene = () => {
         controls.maxPolarAngle = SCENE_CONFIG.controls.maxPolarAngle
         controlsRef.current = controls
 
+        // create compass overlay
+        const compass = createCompassOverlay()
+        if (compass) {
+            compassRef.current.container = compass.container
+            compassRef.current.arrow = compass.arrowElement
+        }
+
         let buildProgress = 0
+        const dirVec = new THREE.Vector3()
         const animate = () => {
             animationFrameRef.current = requestAnimationFrame(animate)
             controls.update()
@@ -272,6 +323,15 @@ const ThreeScene = () => {
                 )
             }
 
+            if (cameraRef.current && compassRef.current.arrow) {
+                cameraRef.current.getWorldDirection(dirVec)
+                dirVec.y = 0
+                if (dirVec.lengthSq() > 0.000001) dirVec.normalize()
+                const angleRad = Math.atan2(dirVec.x, dirVec.z)
+                const angleDeg = angleRad * (180 / Math.PI)
+                compassRef.current.arrow.style.transform = `rotate(${-angleDeg}deg)`
+            }
+
             renderer.render(scene, camera)
         }
         animate()
@@ -281,7 +341,7 @@ const ThreeScene = () => {
         setLoaderState(false)
         setLoaderMessage('')
         return cleanup
-    }, [buildings, createCity, createSkybox, handleResize, cleanup, setMesh])
+    }, [buildings, createCity, createSkybox, handleResize, cleanup, setMesh, createCompassOverlay])
 
     return (
         <div
@@ -291,7 +351,8 @@ const ThreeScene = () => {
                 height: '100vh',
                 margin: 0,
                 padding: 0,
-                overflow: 'hidden'
+                overflow: 'hidden',
+                zIndex: 0
             }}
         />
     )

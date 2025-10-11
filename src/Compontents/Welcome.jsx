@@ -4,7 +4,7 @@ import { ReactComponent as RightClick } from '../Svgs/right-click.svg'
 import { ReactComponent as Times } from '../Svgs/times.svg'
 
 const Welcome = ({ close }) => {
-    return <div style={{ backgroundColor: 'white', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', padding: '20px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.3)', fontFamily: 'Arial, sans-serif', maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', width: 'auto' }}>
+    return <div style={{zIndex: 3, backgroundColor: 'white', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', padding: '20px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.3)', fontFamily: 'Arial, sans-serif', maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', width: 'auto' }}>
         <h2 style={{ fontSize: 'clamp(24px, 5vw, 36px)', margin: '10px 0 15px 0', fontWeight: 'bold' }}>Welcome to OSM Map Builder</h2>
         <p style={{ fontSize: 'clamp(16px, 3.5vw, 20px)', margin: '0 0 10px 0' }}>Select a country and its city to generate 3D model.</p>
         <div style={{ marginTop: '20px' }}>
