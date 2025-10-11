@@ -5,6 +5,7 @@ import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUti
 import { useData } from '../Context/DataContext'
 import { useError } from '../Context/ErrorContext'
 
+import sampleBuildings from './Samples/output.json'
 const SCENE_CONFIG = {
     backgroundColor: '#B0E2FF',
     camera: {
@@ -51,11 +52,9 @@ const ThreeScene = () => {
 
     const createCity = useCallback((buildingsData) => {
         setLoaderMessage('All set! Rendering 3D model...')
+
         if (!buildingsData?.length) {
-            const cubeGeometry = new THREE.BoxGeometry(10, 10, 10)
-            const material = new THREE.MeshStandardMaterial(SCENE_CONFIG.material)
-            const cubeMesh = new THREE.Mesh(cubeGeometry, material)
-            return cubeMesh
+            buildingsData = sampleBuildings
         }
 
         const geometries = []
@@ -166,13 +165,13 @@ const ThreeScene = () => {
 
         const container = document.createElement('div')
         container.setAttribute('id', 'three-compass')
-        container.style.cssText = "position:absolute;left:16px;bottom:16px;width:80px;height:80px;border-radius:8px;background:rgba(255,255,255,0.6);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:3;"
+        container.style.cssText = "position:absolute;left:20px;bottom:20px;width:110px;height:110px;border-radius:8px;background:rgba(255,255,255,0.6);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:3;"
 
         const svgNS = "http://www.w3.org/2000/svg"
         const svg = document.createElementNS(svgNS, 'svg')
         svg.setAttribute('viewBox', '0 0 100 100')
-        svg.setAttribute('width', '70')
-        svg.setAttribute('height', '70')
+        svg.setAttribute('width', '100')
+        svg.setAttribute('height', '100')
         svg.style.display = 'block'
 
         const circle = document.createElementNS(svgNS, 'circle')
