@@ -66,7 +66,7 @@ const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) =>
     };
 
     return (
-        <div ref={wrapperRef} style={{ position: 'relative', width: '300px' }}>
+        <div ref={wrapperRef} style={{ position: 'relative', width: '300px', maxWidth: '100%' }}>
             <input
                 type="text"
                 value={inputValue}
