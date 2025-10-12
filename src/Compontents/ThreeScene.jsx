@@ -47,10 +47,10 @@ const ThreeScene = () => {
     const cityMeshRef = useRef(null)
     const compassRef = useRef({ container: null, arrow: null })
 
-    const { buildings, setMesh } = useData()
+    const { buildings, setMesh, elevated } = useData()
     const { setLoaderState, setLoaderMessage } = useError()
 
-    const createCity = useCallback((buildingsData) => {
+    const createCity = useCallback((buildingsData, isElevated) => {
         setLoaderMessage('All set! Rendering 3D model...')
 
         if (!buildingsData?.length) {
@@ -65,6 +65,19 @@ const ThreeScene = () => {
             }
 
             const { elevation, height, nodes } = buildingData
+
+            // Validate that all node coordinates are valid numbers
+            const hasInvalidNodes = nodes.some(node =>
+                !Array.isArray(node) ||
+                node.length < 2 ||
+                !isFinite(node[0]) ||
+                !isFinite(node[1])
+            )
+
+            if (hasInvalidNodes || !isFinite(elevation) || !isFinite(height)) {
+                continue
+            }
+
             const shape = new THREE.Shape()
 
             shape.moveTo(nodes[0][0], nodes[0][1])
@@ -80,7 +93,7 @@ const ThreeScene = () => {
 
             const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
             geometry.rotateX(Math.PI / 2)
-            geometry.translate(0, -elevation, 0)
+            geometry.translate(0, (- elevation * (isElevated ? 1 : 0)), 0)
             geometries.push(geometry)
         }
 
@@ -97,7 +110,7 @@ const ThreeScene = () => {
         cityMesh.rotation.z = Math.PI
 
         return cityMesh
-    }, [])
+    }, [setLoaderState, setLoaderMessage])
 
     const createSkybox = useCallback(() => {
         const skyboxGeometry = new THREE.SphereGeometry(
@@ -272,7 +285,7 @@ const ThreeScene = () => {
         mountRef.current.appendChild(renderer.domElement)
         rendererRef.current = renderer
 
-        const cityMesh = createCity(buildings)
+        const cityMesh = createCity(buildings, elevated)
         if (cityMesh) {
             cityMesh.scale.y = 0.001
             scene.add(cityMesh)
@@ -339,7 +352,7 @@ const ThreeScene = () => {
         setLoaderState(false)
         setLoaderMessage('')
         return cleanup
-    }, [buildings, createCity, createSkybox, handleResize, cleanup, setMesh, createCompassOverlay])
+    }, [buildings, createCity, createSkybox, handleResize, cleanup, setMesh, createCompassOverlay, elevated])
 
     return (
         <div

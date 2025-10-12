@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useData } from '../Context/DataContext';
+import { useData } from '../../Context/DataContext';
 
 const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) => {
     const [inputValue, setInputValue] = useState('');
@@ -78,13 +78,14 @@ const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) =>
                     width: '100%',
                     padding: '10px 12px',
                     fontSize: '14px',
-                    border: '1px solid #ddd',
+                    border: '1px solid rgba(228, 228, 228, 1)',
                     borderRadius: '6px',
                     outline: 'none',
                     boxSizing: 'border-box',
                     transition: 'border-color 0.2s',
                     opacity: isLoading ? 0.6 : 1,
                     cursor: isLoading ? 'wait' : 'text',
+                    backgroundColor: 'rgba(255, 255, 255, .75)'
                 }}
                 onMouseEnter={(e) => !isLoading && (e.target.style.borderColor = '#999')}
                 onMouseLeave={(e) => e.target.style.borderColor = '#ddd'}

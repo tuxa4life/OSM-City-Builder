@@ -22,6 +22,7 @@ const DataProvider = ({ children }) => {
     const [cities, setCities] = useState({})
     const [selectedCity, setSelectedCity] = useState(-1)
     const [mesh, setMesh] = useState(null)
+    const [elevated, setElevated] = useState(true)
 
     const calculateCenter = useCallback((coords) => {
         if (!coords.length) return null
@@ -291,8 +292,10 @@ const DataProvider = ({ children }) => {
         countries,
         cities,
         setSelectedCity,
-        selectCountry
-    }), [mesh, fetching, buildings, countries, cities, selectCountry])
+        selectCountry,
+        elevated,
+        setElevated,
+    }), [mesh, fetching, buildings, countries, cities, elevated, selectCountry])
 
     return (
         <DataContext.Provider value={contextValue}>
