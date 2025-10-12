@@ -12,7 +12,7 @@ const SCENE_CONFIG = {
         fov: 75,
         near: 0.1,
         far: 15000,
-        position: { x: 200, y: 200, z: 200 }
+        position: { x: 0, y: 100, z: -200 }
     },
     lights: {
         ambient: { color: 0xffffff, intensity: 0.6 },
@@ -300,7 +300,6 @@ const ThreeScene = () => {
         controls.maxPolarAngle = SCENE_CONFIG.controls.maxPolarAngle
         controlsRef.current = controls
 
-        // create compass overlay
         const compass = createCompassOverlay()
         if (compass) {
             compassRef.current.container = compass.container
@@ -328,7 +327,7 @@ const ThreeScene = () => {
                 if (dirVec.lengthSq() > 0.000001) dirVec.normalize()
                 const angleRad = Math.atan2(dirVec.x, dirVec.z)
                 const angleDeg = angleRad * (180 / Math.PI)
-                compassRef.current.arrow.style.transform = `rotate(${-angleDeg}deg)`
+                compassRef.current.arrow.style.transform = `rotate(${angleDeg}deg)`
             }
 
             renderer.render(scene, camera)
