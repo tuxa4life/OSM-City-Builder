@@ -1,7 +1,7 @@
 import { useData } from "../Context/DataContext"
 import Dropdown from "./UI/Dropdown"
 import { ReactComponent as Tab } from '../Svgs/tab.svg'
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Button from "./UI/Button"
 import Checkbox from "./UI/Checkbox"
 import { GLTFExporter } from "three/examples/jsm/Addons.js"
@@ -18,6 +18,17 @@ const CitySelector = () => {
             value: code,
         }))
     }
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault()
+                setOpen(prev => !prev)
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [])
 
     const exportObject = () => {
         setLoaderState(true)
