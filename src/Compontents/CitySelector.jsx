@@ -19,6 +19,13 @@ const CitySelector = () => {
         }))
     }
 
+    const formatCityData = (data) => {
+        return Object.entries(data).map(([name, data]) => ({
+            text: name.charAt(0).toUpperCase() + name.slice(1),
+            value: data.id,
+        }))
+    }
+
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Tab') {
@@ -77,7 +84,7 @@ const CitySelector = () => {
 
         <div style={{ margin: '20px 0 10px 0' }}>
             <h4>Select a city</h4>
-            <Dropdown disabled={!Object.keys(cities).length} options={() => formatData(cities)} placeholder="Search city..." onChange={(e) => setSelectedCity(e.value)} />
+            <Dropdown disabled={!Object.keys(cities).length} options={() => formatCityData(cities)} placeholder="Search city..." onChange={(e) => setSelectedCity(e.value)} />
         </div>
 
         <Checkbox label='Ignore elevation' onChange={(checked) => setElevated(!checked)} />

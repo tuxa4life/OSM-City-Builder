@@ -42,8 +42,8 @@ const DataProvider = ({ children }) => {
         }
     }, [])
 
-    const getEnglishName = useCallback((tags) => 
-        tags['name:en'] || tags['int_name'] || tags['name:latin'] || 
+    const getEnglishName = useCallback((tags) =>
+        tags['name:en'] || tags['int_name'] || tags['name:latin'] ||
         tags['official_name:en'] || tags['name'], [])
 
     const fetchWithRetry = useCallback(async (fetchFn, maxRetries = MAX_RETRIES, baseDelay = BASE_RETRY_DELAY) => {
@@ -86,10 +86,12 @@ const DataProvider = ({ children }) => {
         const query = `
             [out:json][timeout:60];
             area["ISO3166-1"="${countryCode}"]->.country;
-            (
-                relation["place"~"city|town"]["population"](area.country);
-            );
-            out tags;
+                (
+                    relation["place"~"city|town"]["population"](area.country);
+                    way["place"~"city|town"]["population"](area.country);
+                    node["place"~"city|town"]["population"](area.country); 
+                );
+            out tags center;
         `
 
         try {
@@ -98,16 +100,25 @@ const DataProvider = ({ children }) => {
                     headers: { 'Content-Type': 'text/plain' }
                 })
             )
-
+            
+            const typeOrder = { relation: 0, way: 1, node: 2 }
             const cityMap = response.data.elements
-                .filter((e) => {
-                    const pop = parseInt(e.tags?.population || 0)
-                    return pop >= MIN_POPULATION && e.tags?.name
+                .sort((a, b) => {
+                    const typeComparison = typeOrder[a.type] - typeOrder[b.type]
+                    if (typeComparison !== 0) return typeComparison
+
+                    const popA = parseInt(a.tags?.population) || 0
+                    const popB = parseInt(b.tags?.population) || 0
+                    return popB - popA
                 })
-                .sort((a, b) => parseInt(b.tags.population || 0) - parseInt(a.tags.population || 0))
                 .reduce((acc, e) => {
                     const name = getEnglishName(e.tags)
-                    acc[name] = e.id
+                    if (!acc[name]) {
+                        acc[name] = {
+                            id: e.id,
+                            type: e.type,
+                        }
+                    }
                     return acc
                 }, {})
 
@@ -204,8 +215,8 @@ const DataProvider = ({ children }) => {
                 return [x, z]
             })
 
-            const y = building.elevation != null 
-                ? (building.elevation - bounds.minElevation) * scale 
+            const y = building.elevation != null
+                ? (building.elevation - bounds.minElevation) * scale
                 : 2
 
             return {
@@ -218,18 +229,43 @@ const DataProvider = ({ children }) => {
         return scaledBuildings
     }, [])
 
-    const fetchBuildings = useCallback(async (cityId) => {
+    const fetchBuildings = useCallback(async (cityId, type) => {
         setLoaderState(true)
         setLoaderMessage('Fetching building nodes...')
 
-        const areaId = 3600000000 + cityId
-        const query = `
+        let query;
+
+        if (type === 'relation') {
+            const areaId = 3600000000 + cityId
+            query = `
             [out:json][timeout:${OVERPASS_TIMEOUT}];
             (
                 way["building"](area:${areaId});
             );
             out body geom;
         `
+        } else if (type === 'way') {
+            query = `
+            [out:json][timeout:${OVERPASS_TIMEOUT}];
+            way(${cityId});
+            map_to_area->.searchArea;
+            (
+                way["building"](area.searchArea);
+            );
+            out body geom;
+        `
+        } else if (type === 'node') {
+            query = `
+            [out:json][timeout:${OVERPASS_TIMEOUT}];
+            node(${cityId});
+            (
+                way["building"](around:15000);
+            );
+            out body geom;
+        `
+        } else {
+            throw new Error(`Invalid type: ${type}. Must be 'relation', 'way', or 'node'`)
+        }
 
         try {
             const response = await fetchWithRetry(() => axios.post('https://overpass-api.de/api/interpreter', query, {
@@ -280,7 +316,7 @@ const DataProvider = ({ children }) => {
     useEffect(() => {
         if (selectedCity !== -1) {
             setFetching(true)
-            fetchBuildings(selectedCity).finally(() => setFetching(false))
+            fetchBuildings(selectedCity.id, selectedCity.type).finally(() => setFetching(false))
         }
     }, [selectedCity, fetchBuildings])
 
