@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { useData } from '../../Context/DataContext';
 
 const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) => {
     const [inputValue, setInputValue] = useState('');
@@ -9,7 +8,6 @@ const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) =>
     const [isLoading, setIsLoading] = useState(false);
     
     const wrapperRef = useRef(null);
-    const { fetching } = useData()
 
     useEffect(() => {
         const resolveOptions = async () => {
@@ -61,7 +59,7 @@ const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) =>
     };
 
     const handleInputChange = (e) => {
-        setInputValue(e.target.value);
+        setInputValue(e.target.value?.id || e.target.value);
         setIsOpen(true);
     };
 
@@ -73,7 +71,7 @@ const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) =>
                 onChange={handleInputChange}
                 onFocus={() => setIsOpen(true)}
                 placeholder={disabled ? 'Select country first' : placeholder}
-                disabled={isLoading || disabled || fetching}
+                disabled={isLoading || disabled}
                 style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -91,7 +89,7 @@ const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) =>
                 onMouseLeave={(e) => e.target.style.borderColor = '#ddd'}
             />
 
-            {isOpen && (isLoading || disabled || fetching) && (
+            {isOpen && (isLoading || disabled) && (
                 <div style={{
                     position: 'absolute',
                     top: '100%',
@@ -127,7 +125,7 @@ const Dropdown = ({ options, placeholder = "Search...", onChange, disabled }) =>
                 }}>
                     {filteredOptions.map((option) => (
                         <div
-                            key={option.value}
+                            key={option.value?.id || option.value}
                             onClick={() => handleSelect(option)}
                             style={{
                                 padding: '10px 12px',

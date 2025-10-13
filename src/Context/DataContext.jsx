@@ -7,7 +7,6 @@ const DataContext = createContext()
 const DEFAULT_BUILDING_LEVELS = 3
 const OVERPASS_TIMEOUT = 1200
 const ELEVATION_BATCH_SIZE = 10000
-const MIN_POPULATION = 1000
 const MAX_RETRIES = 3
 const BASE_RETRY_DELAY = 2000
 const RETRY_DELAY_504 = 3000
@@ -309,14 +308,14 @@ const DataProvider = ({ children }) => {
 
     useEffect(() => {
         if (selectedCountry) {
-            fetchCities(selectedCountry)
+            setFetching(true)
+            fetchCities(selectedCountry).finally(() => setFetching(false))
         }
     }, [selectedCountry, fetchCities])
 
     useEffect(() => {
         if (selectedCity !== -1) {
-            setFetching(true)
-            fetchBuildings(selectedCity.id, selectedCity.type).finally(() => setFetching(false))
+            fetchBuildings(selectedCity.id, selectedCity.type)
         }
     }, [selectedCity, fetchBuildings])
 

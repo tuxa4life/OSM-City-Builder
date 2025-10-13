@@ -6,7 +6,7 @@ import ThreeScene from './Compontents/ThreeScene';
 import Message from './Compontents/Message';
 import { useError } from './Context/ErrorContext';
 import Loading from './Compontents/Loading';
-import './Styles/App.css'
+import './Compontents/UI/Styles/App.css'
 
 const App = () => {
     const [welcomeOpen, setWelcomeOpen] = useState(true)

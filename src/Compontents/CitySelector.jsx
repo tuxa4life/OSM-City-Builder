@@ -1,6 +1,6 @@
 import { useData } from "../Context/DataContext"
 import Dropdown from "./UI/Dropdown"
-import { ReactComponent as Tab } from '../Svgs/tab.svg'
+import { ReactComponent as Tab } from './Svgs/tab.svg'
 import { useEffect, useState } from "react"
 import Button from "./UI/Button"
 import Checkbox from "./UI/Checkbox"
@@ -8,7 +8,7 @@ import { GLTFExporter } from "three/examples/jsm/Addons.js"
 import { useError } from "../Context/ErrorContext"
 
 const CitySelector = () => {
-    const { countries, cities, selectCountry, setSelectedCity, mesh, setElevated } = useData()
+    const { countries, cities, selectCountry, setSelectedCity, mesh, setElevated, fetching } = useData()
     const { setLoaderMessage, setLoaderState } = useError()
     const [open, setOpen] = useState(true)
 
@@ -18,14 +18,7 @@ const CitySelector = () => {
             value: code,
         }))
     }
-
-    const formatCityData = (data) => {
-        return Object.entries(data).map(([name, data]) => ({
-            text: name.charAt(0).toUpperCase() + name.slice(1),
-            value: data.id,
-        }))
-    }
-
+    
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Tab') {
@@ -84,7 +77,8 @@ const CitySelector = () => {
 
         <div style={{ margin: '20px 0 10px 0' }}>
             <h4>Select a city</h4>
-            <Dropdown disabled={!Object.keys(cities).length} options={() => formatCityData(cities)} placeholder="Search city..." onChange={(e) => setSelectedCity(e.value)} />
+            <Dropdown disabled={!Object.keys(cities).length} options={() => formatData(cities)} placeholder="Search city..." onChange={(e) => setSelectedCity(e.value)} />
+            { fetching && <p style={{marginTop: '5px'}}>Loading cities...</p> }
         </div>
 
         <Checkbox label='Ignore elevation' onChange={(checked) => setElevated(!checked)} />

@@ -1,7 +1,7 @@
-import { ReactComponent as Scroll } from '../Svgs/scroll.svg'
-import { ReactComponent as LeftClick } from '../Svgs/left-click.svg'
-import { ReactComponent as RightClick } from '../Svgs/right-click.svg'
-import { ReactComponent as Times } from '../Svgs/times.svg'
+import { ReactComponent as Scroll } from './Svgs/scroll.svg'
+import { ReactComponent as LeftClick } from './Svgs/left-click.svg'
+import { ReactComponent as RightClick } from './Svgs/right-click.svg'
+import { ReactComponent as Times } from './Svgs/times.svg'
 
 const Welcome = ({ close }) => {
     return <div style={{zIndex: 3, backgroundColor: 'rgba(255, 255, 255, 0.7)', backdropFilter: 'blur(5px)', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', padding: '20px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.3)', fontFamily: 'Arial, sans-serif', maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', width: '600px' }}>

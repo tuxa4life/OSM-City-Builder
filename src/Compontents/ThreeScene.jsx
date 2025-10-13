@@ -5,7 +5,7 @@ import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUti
 import { useData } from '../Context/DataContext'
 import { useError } from '../Context/ErrorContext'
 
-import sampleBuildings from './Samples/output.json'
+import sampleBuildings from '../constants/sampleCity.json'
 const SCENE_CONFIG = {
     backgroundColor: '#B0E2FF',
     camera: {
