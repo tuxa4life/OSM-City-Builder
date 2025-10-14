@@ -129,6 +129,7 @@ const DataProvider = ({ children }) => {
     }, [fetchWithRetry, getEnglishName])
 
     const fetchElevations = useCallback(async (coordinates) => {
+        setLoaderState(true)
         setLoaderMessage('Fetching building elevation data...')
         const url = 'https://api.open-elevation.com/api/v1/lookup'
         const results = []
@@ -162,6 +163,7 @@ const DataProvider = ({ children }) => {
     }, [])
 
     const scaleOSMCoordinates = useCallback((buildings, options = {}) => {
+        setLoaderState(true)
         setLoaderMessage('Scaling models to target size...')
         const { targetSize = 3000, centerOrigin = true } = options
 
@@ -271,6 +273,10 @@ const DataProvider = ({ children }) => {
                 headers: { 'Content-Type': 'text/plain' }
             }), MAX_RETRIES, RETRY_DELAY_504)
 
+            if (!response.data) {
+                throw '=== Large data to process. ==='
+            }
+
             const processedBuildings = response.data.elements.map((element) => ({
                 nodes: element.geometry.map((e) => [e.lon, e.lat]),
                 height: element.tags?.['building:levels'] ?? DEFAULT_BUILDING_LEVELS,
@@ -292,6 +298,7 @@ const DataProvider = ({ children }) => {
 
             setBuildings(scaledBuildings)
         } catch (err) {
+            setLoaderState(false)
             showError(`Error ${err.response?.status || err.status} while generating fetching buildings.`)
             return -1
         }
