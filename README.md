@@ -80,8 +80,8 @@ npm start
 // input
 [
     {
-    "latitude": 41.7099,
-    "longitude": 44.85
+        "latitude": 41.7099,
+        "longitude": 44.85
     },
     ...
 ]
@@ -158,9 +158,18 @@ npm start
 - Cities
 ```js
 {
-    "Tbilisi": 1996871,
-    "Rustavi": 5997314,
-    "Kutaisi": 8742174,
+    "Tbilisi": {
+        id: 1996871,
+        type: 'relation'
+    },
+    "Rustavi": {
+        id: 5997314,
+        type: 'way'
+    },
+    "Kutaisi": {
+        id: 8742174,
+        type: 'node'
+    },
     ...
 }
 ```

@@ -299,7 +299,12 @@ const DataProvider = ({ children }) => {
             setBuildings(scaledBuildings)
         } catch (err) {
             setLoaderState(false)
-            showError(`Error ${err.response?.status || err.status} while generating fetching buildings.`)
+            if (!err.status && !err.response?.status) {
+                showError(`Uknown error. Try generating model with a Map.`)
+            } else {
+                showError(`Error ${err.response?.status || err.status} while generating fetching buildings.`)
+            }
+
             return -1
         }
     }, [fetchWithRetry, calculateCenter, fetchElevations, scaleOSMCoordinates])
