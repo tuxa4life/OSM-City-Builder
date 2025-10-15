@@ -10,3 +10,7 @@ body, html, #root {
     height: 100%;
     overflow: hidden;
 }
+
+.leaflet-bottom.leaflet-right {
+    display: none;
+}

@@ -2,6 +2,8 @@
 
 A React app that fetches geographic data from **OpenStreetMap (OSM)** and generates a **3D map** using **Three.js** based on node information. You can also **export the 3D map as a GLTF file**.
 
+### Check out [Demo](https://osm.tuxa.ge)
+
 ## Features
 
 -   Fetch city/region data from OSM.

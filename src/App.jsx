@@ -7,9 +7,12 @@ import Message from './Compontents/Message';
 import { useError } from './Context/ErrorContext';
 import Loading from './Compontents/Loading';
 import './Compontents/UI/Styles/App.css'
+import OSMap from './Compontents/OSMap';
 
 const App = () => {
     const [welcomeOpen, setWelcomeOpen] = useState(true)
+    const [mapOpen, setMapOpen] = useState(false)
+
     const { buildings } = useData()
     const { error, loaderState } = useError()
 
@@ -18,8 +21,10 @@ const App = () => {
         { error && <Message /> }
         { loaderState && <Loading /> }
 
-        <CitySelector />
+        <CitySelector setMapOpen={setMapOpen} />
         <ThreeScene />
+
+        { mapOpen &&  <OSMap setMapOpen={setMapOpen}/>}
     </div>
 }
 

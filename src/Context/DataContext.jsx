@@ -99,7 +99,7 @@ const DataProvider = ({ children }) => {
                     headers: { 'Content-Type': 'text/plain' }
                 })
             )
-            
+
             const typeOrder = { relation: 0, way: 1, node: 2 }
             const cityMap = response.data.elements
                 .sort((a, b) => {
@@ -165,7 +165,7 @@ const DataProvider = ({ children }) => {
     const scaleOSMCoordinates = useCallback((buildings, options = {}) => {
         setLoaderState(true)
         setLoaderMessage('Scaling models to target size...')
-        const { targetSize = 3000, centerOrigin = true } = options
+        const { targetSize = 3000, centerOrigin = true, metersPerLevel = 24 } = options
 
         if (!buildings?.length) {
             return { buildings: [], bounds: null, scale: 1 }
@@ -218,11 +218,14 @@ const DataProvider = ({ children }) => {
 
             const y = building.elevation != null
                 ? (building.elevation - bounds.minElevation) * scale
-                : 2
+                : 0
+
+            const levelsToMeters = (building.height || 12) * metersPerLevel
+            const scaledHeight = levelsToMeters * scale
 
             return {
                 nodes: scaledNodes,
-                height: (building.height || 2) * (targetSize / 1000),
+                height: scaledHeight,
                 elevation: y
             }
         })
@@ -230,43 +233,56 @@ const DataProvider = ({ children }) => {
         return scaledBuildings
     }, [])
 
+    const returnQuery = (data, type) => {
+        if (typeof (data) === 'object') {
+            return `
+                [out:json][timeout:60];
+                (
+                    way["building"](${data.bottomLeft.lat},${data.topLeft.lng},${data.topRight.lat},${data.bottomRight.lng});
+                    relation["building"](${data.bottomLeft.lat},${data.topLeft.lng},${data.topRight.lat},${data.bottomRight.lng});
+                );
+                out body geom;
+            `
+        }
+
+        if (type === 'relation') {
+            const areaId = 3600000000 + data
+            return `
+                [out:json][timeout:${OVERPASS_TIMEOUT}];
+                (
+                    way["building"](area:${areaId});
+                );
+                out body geom;
+            `
+        } else if (type === 'way') {
+            return `
+                [out:json][timeout:${OVERPASS_TIMEOUT}];
+                way(${data});
+                map_to_area->.searchArea;
+                (
+                    way["building"](area.searchArea);
+                );
+                out body geom;
+            `
+        } else if (type === 'node') {
+            return `
+                [out:json][timeout:${OVERPASS_TIMEOUT}];
+                node(${data});
+                (
+                    way["building"](around:15000);
+                );
+                out body geom;
+            `
+        } else {
+            throw new Error(`Invalid type: ${type}. Must be 'relation', 'way', or 'node'`)
+        }
+    }
+
     const fetchBuildings = useCallback(async (cityId, type) => {
         setLoaderState(true)
         setLoaderMessage('Fetching building nodes...')
 
-        let query;
-
-        if (type === 'relation') {
-            const areaId = 3600000000 + cityId
-            query = `
-            [out:json][timeout:${OVERPASS_TIMEOUT}];
-            (
-                way["building"](area:${areaId});
-            );
-            out body geom;
-        `
-        } else if (type === 'way') {
-            query = `
-            [out:json][timeout:${OVERPASS_TIMEOUT}];
-            way(${cityId});
-            map_to_area->.searchArea;
-            (
-                way["building"](area.searchArea);
-            );
-            out body geom;
-        `
-        } else if (type === 'node') {
-            query = `
-            [out:json][timeout:${OVERPASS_TIMEOUT}];
-            node(${cityId});
-            (
-                way["building"](around:15000);
-            );
-            out body geom;
-        `
-        } else {
-            throw new Error(`Invalid type: ${type}. Must be 'relation', 'way', or 'node'`)
-        }
+        const query = returnQuery(cityId, type)
 
         try {
             const response = await fetchWithRetry(() => axios.post('https://overpass-api.de/api/interpreter', query, {
@@ -276,8 +292,8 @@ const DataProvider = ({ children }) => {
             if (!response.data) {
                 throw '=== Large data to process. ==='
             }
-
-            const processedBuildings = response.data.elements.map((element) => ({
+            console.log(response.data)
+            const processedBuildings = response.data.elements.filter(e => e.type !== 'relation').map((element) => ({
                 nodes: element.geometry.map((e) => [e.lon, e.lat]),
                 height: element.tags?.['building:levels'] ?? DEFAULT_BUILDING_LEVELS,
                 center: calculateCenter(element.geometry)
@@ -304,7 +320,7 @@ const DataProvider = ({ children }) => {
             } else {
                 showError(`Error ${err.response?.status || err.status} while generating fetching buildings.`)
             }
-
+            console.log(err)
             return -1
         }
     }, [fetchWithRetry, calculateCenter, fetchElevations, scaleOSMCoordinates])
@@ -342,7 +358,8 @@ const DataProvider = ({ children }) => {
         selectCountry,
         elevated,
         setElevated,
-    }), [mesh, fetching, buildings, countries, cities, elevated, selectCountry])
+        fetchBuildings,
+    }), [mesh, fetching, buildings, countries, cities, elevated, selectCountry, fetchBuildings])
 
     return (
         <DataContext.Provider value={contextValue}>

@@ -66,7 +66,6 @@ const ThreeScene = () => {
 
             const { elevation, height, nodes } = buildingData
 
-            // Validate that all node coordinates are valid numbers
             const hasInvalidNodes = nodes.some(node =>
                 !Array.isArray(node) ||
                 node.length < 2 ||

@@ -7,7 +7,7 @@ import Checkbox from "./UI/Checkbox"
 import { GLTFExporter } from "three/examples/jsm/Addons.js"
 import { useError } from "../Context/ErrorContext"
 
-const CitySelector = () => {
+const CitySelector = ({ setMapOpen }) => {
     const { countries, cities, selectCountry, setSelectedCity, mesh, setElevated, fetching } = useData()
     const { setLoaderMessage, setLoaderState } = useError()
     const [open, setOpen] = useState(true)
@@ -82,6 +82,7 @@ const CitySelector = () => {
         </div>
 
         <Checkbox label='Ignore elevation' onChange={(checked) => setElevated(!checked)} />
+        <Button type="primary" label='Select from the map' onClick={() => setMapOpen(true)} />
         <Button label='Export as .GTFL File' onClick={exportObject} />
     </div>
 }
